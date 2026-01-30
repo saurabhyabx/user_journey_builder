@@ -15,6 +15,7 @@ import "reactflow/dist/style.css";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { StrategicInsightsPanel } from "./strategic-insights-panel";
 import {
   Save,
   Plus,
@@ -25,7 +26,8 @@ import {
   Trash2,
   AlertCircle,
   FileJson,
-  FileText
+  FileText,
+  Lightbulb
 } from "lucide-react";
 import {
   generateMermaidDiagram,
@@ -77,7 +79,31 @@ const nodeTypes = {
   action: ActionNode,
   intervention: InterventionNode,
   touchpoint: TouchpointNode,
+  swimlaneHeader: SwimlaneHeaderNode,
 };
+
+const SWIMLANES = [
+  { key: "ACQUISITION", label: "🎯 Acquisition", y: 0, color: "#10B981" },
+  { key: "ACTIVATION", label: "⚡ Activation", y: 250, color: "#3B82F6" },
+  { key: "RETENTION", label: "🔄 Retention", y: 500, color: "#8B5CF6" },
+  { key: "MONETIZATION", label: "💰 Monetization", y: 750, color: "#F59E0B" },
+  { key: "REFERRAL", label: "🚀 Referral", y: 1000, color: "#EF4444" },
+];
+
+function SwimlaneHeaderNode({ data }: { data: { label: string; color: string } }) {
+  return (
+    <div
+      className="px-3 py-2 rounded-full text-xs font-semibold shadow-sm border"
+      style={{
+        borderColor: data.color,
+        backgroundColor: `${data.color}20`,
+        color: data.color,
+      }}
+    >
+      {data.label}
+    </div>
+  );
+}
 
 export function JourneyEditor({ journeyId }: JourneyEditorProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -85,6 +111,7 @@ export function JourneyEditor({ journeyId }: JourneyEditorProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showNodeMenu, setShowNodeMenu] = useState(false);
+  const [showInsights, setShowInsights] = useState(false);
 
   // Fetch journey data
   const { data: journey, isLoading } = trpc.journey.getById.useQuery(
@@ -107,6 +134,17 @@ export function JourneyEditor({ journeyId }: JourneyEditorProps) {
   // Initialize nodes and edges from journey data
   useEffect(() => {
     if (journey?.nodes && journey?.connections) {
+      const swimlaneNodes: Node[] = SWIMLANES.map((lane) => ({
+        id: `swimlane-${lane.key}`,
+        type: "swimlaneHeader",
+        data: { label: lane.label, color: lane.color, isSwimlane: true },
+        position: { x: -260, y: lane.y - 40 },
+        draggable: false,
+        selectable: false,
+        connectable: false,
+        focusable: false,
+      }));
+
       const initialNodes: Node[] = journey.nodes.map((node: any) => ({
         id: node.id,
         data: {
@@ -130,7 +168,7 @@ export function JourneyEditor({ journeyId }: JourneyEditorProps) {
         animated: true,
       }));
 
-      setNodes(initialNodes);
+      setNodes([...swimlaneNodes, ...initialNodes]);
       setEdges(initialEdges);
     }
   }, [journey?.nodes, journey?.connections, setNodes, setEdges]);
@@ -151,7 +189,9 @@ export function JourneyEditor({ journeyId }: JourneyEditorProps) {
     try {
       await saveJourney.mutateAsync({
         journeyId,
-        nodes: nodes.map((node) => ({
+        nodes: nodes
+          .filter((node) => node.type !== "swimlaneHeader")
+          .map((node) => ({
           id: node.id,
           type: node.data.type || "ACTION",
           label: node.data.label || "Step",
@@ -160,7 +200,7 @@ export function JourneyEditor({ journeyId }: JourneyEditorProps) {
           positionY: node.position.y,
           data: node.data,
           stage: node.data.stage,
-        })),
+          })),
         connections: edges.map((edge) => ({
           id: edge.id,
           sourceId: edge.source,
@@ -251,7 +291,7 @@ export function JourneyEditor({ journeyId }: JourneyEditorProps) {
   }
 
   return (
-    <div className="relative h-screen w-full">
+    <div className="relative h-screen w-full flex">
       {/* Error banner */}
       {error && (
         <div className="absolute left-0 right-0 top-0 z-50 flex items-center gap-2 bg-red-50 px-4 py-3 text-sm text-red-700 border-b border-red-200">
@@ -260,83 +300,108 @@ export function JourneyEditor({ journeyId }: JourneyEditorProps) {
         </div>
       )}
 
-      {/* ReactFlow Canvas */}
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        nodeTypes={nodeTypes}
-        fitView
-      >
-        <Background />
-        <Controls />
-        <MiniMap />
+      {/* Main Canvas Area */}
+      <div className="flex-1 flex flex-col">
+        {/* ReactFlow Canvas */}
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          nodeTypes={nodeTypes}
+          fitView
+        >
+          <Background />
+          <Controls />
+          <MiniMap />
 
-        {/* Top Toolbar */}
-        <Panel position="top-left" className="flex gap-2">
-          <Card className="p-2 flex gap-1">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setShowNodeMenu(!showNodeMenu)}
-              title="Add new node"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Add Node
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleSave}
-              disabled={saving}
-              title="Save changes"
-            >
-              <Save className="h-4 w-4 mr-1" />
-              {saving ? "Saving..." : "Save"}
-            </Button>
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={deleteSelectedNodes}
-              title="Delete selected nodes"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </Card>
+          {/* Top Toolbar - Apple Design Applied */}
+          <Panel position="top-left" className="flex gap-3">
+            <Card className="p-3 flex gap-2 bg-white/95 backdrop-blur-sm border-slate-200 shadow-md">
+              <Button
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium"
+                onClick={() => setShowNodeMenu(!showNodeMenu)}
+                title="Add new node"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Node
+              </Button>
+              <Button
+                size="sm"
+                className="bg-green-600 hover:bg-green-700 text-white font-medium"
+                onClick={handleSave}
+                disabled={saving}
+                title="Save changes"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {saving ? "Saving..." : "Save"}
+              </Button>
+              <div className="w-px bg-slate-200"></div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={deleteSelectedNodes}
+                title="Delete selected nodes"
+                className="border-slate-300 hover:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </Card>
 
-          {/* Export Menu */}
-          <Card className="p-2 flex gap-1">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleExport("mermaid")}
-              title="Export as Mermaid diagram"
-            >
-              <FileText className="h-4 w-4 mr-1" />
-              Mermaid
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleExport("json")}
-              title="Export as JSON"
-            >
-              <FileJson className="h-4 w-4 mr-1" />
-              JSON
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleExport("csv")}
-              title="Export as CSV"
-            >
-              <Download className="h-4 w-4 mr-1" />
-              CSV
-            </Button>
-          </Card>
-        </Panel>
+            {/* Export Menu */}
+            <Card className="p-3 flex gap-2 bg-white/95 backdrop-blur-sm border-slate-200 shadow-md">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleExport("mermaid")}
+                title="Export as Mermaid diagram"
+                className="border-slate-300"
+              >
+                <FileText className="h-4 w-4 mr-1" />
+                Mermaid
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleExport("json")}
+                title="Export as JSON"
+                className="border-slate-300"
+              >
+                <FileJson className="h-4 w-4 mr-1" />
+                JSON
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleExport("csv")}
+                title="Export as CSV"
+                className="border-slate-300"
+              >
+                <Download className="h-4 w-4 mr-1" />
+                CSV
+              </Button>
+            </Card>
+
+            {/* Insights Toggle Button - Top Right */}
+            <Card className="p-3 bg-white/95 backdrop-blur-sm border-slate-200 shadow-md absolute top-0 right-0 mr-3">
+              <Button
+                size="sm"
+                className={`transition-all ${
+                  showInsights
+                    ? "bg-blue-100 text-blue-700 border-blue-300"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                }`}
+                variant="outline"
+                onClick={() => setShowInsights(!showInsights)}
+                title="Toggle strategic insights panel"
+              >
+                <Lightbulb className="h-4 w-4 mr-2" />
+                {showInsights ? "Hide" : "Show"} Insights
+              </Button>
+            </Card>
+          </Panel>
 
         {/* Node Type Menu */}
         {showNodeMenu && (
@@ -431,7 +496,7 @@ export function JourneyEditor({ journeyId }: JourneyEditorProps) {
 
         {/* Bottom Info Panel */}
         <Panel position="bottom-left">
-          <Card className="p-3 text-xs text-muted-foreground max-w-xs">
+          <Card className="p-3 text-xs text-muted-foreground max-w-xs bg-white/95 backdrop-blur-sm border-slate-200">
             <p className="font-semibold mb-2">Journey Information</p>
             <p>📊 Nodes: {nodes.length}</p>
             <p>🔗 Connections: {edges.length}</p>
@@ -441,6 +506,21 @@ export function JourneyEditor({ journeyId }: JourneyEditorProps) {
           </Card>
         </Panel>
       </ReactFlow>
+      </div>
+
+      {/* Strategic Insights Sidebar - Collapsible */}
+      <div
+        className={`transition-all duration-300 ease-out overflow-hidden ${
+          showInsights ? "w-80" : "w-0"
+        }`}
+      >
+        {showInsights && (
+          <StrategicInsightsPanel
+            nodes={nodes.filter((n) => n.type !== "swimlaneHeader")}
+            onClose={() => setShowInsights(false)}
+          />
+        )}
+      </div>
     </div>
   );
 }

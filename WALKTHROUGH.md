@@ -54,4 +54,4 @@ To support this experience, we made significant under-the-hood improvements:
 
 ### Try It Now
 The application is running live at:
-**[http://localhost:3005](http://localhost:3005)**
+**[http://localhost:3000](http://localhost:3000)**

@@ -212,9 +212,41 @@ export default function DetailedFormPage() {
 
   const handleInputChange = (key: string, value: any) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
+    setError(null); // Clear error when user types
+  };
+
+  const validateCurrentPage = (): boolean => {
+    const requiredFields = currentPage.questions.filter(q => q.required);
+    const missingFields: string[] = [];
+
+    for (const field of requiredFields) {
+      const value = formData[field.key];
+      if (!value || (typeof value === 'string' && value.trim().length === 0)) {
+        missingFields.push(field.label);
+      }
+      // For text/textarea fields, require minimum 3 characters
+      if (value && typeof value === 'string' && (field.type === 'text' || field.type === 'textarea')) {
+        if (value.trim().length < 3) {
+          setError(`"${field.label}" must be at least 3 characters long.`);
+          return false;
+        }
+      }
+    }
+
+    if (missingFields.length > 0) {
+      setError(`Please fill in required fields: ${missingFields.join(', ')}`);
+      return false;
+    }
+
+    return true;
   };
 
   const handleNext = () => {
+    if (!validateCurrentPage()) {
+      return;
+    }
+    
+    setError(null);
     if (isLastPage) {
       handleSubmit();
     } else {

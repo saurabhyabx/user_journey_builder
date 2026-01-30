@@ -1,0 +1,10 @@
+{
+  "message": "Failed to generate journey. Please try again.",
+  "stack": "Error: Failed to generate journey. Please try again.\n    at <anonymous> (C:\\Users\\Saurabh Jauhari\\Downloads\\torrentz\\user-journey-builder\\server\\trpc\\routers\\ai.ts:91:15)\n    at async resolveMiddleware (C:\\Users\\Saurabh Jauhari\\Downloads\\torrentz\\user-journey-builder\\node_modules\\@trpc\\server\\dist\\initTRPC--HrEu8sH.cjs:221:17)\n    at async callRecursive (C:\\Users\\Saurabh Jauhari\\Downloads\\torrentz\\user-journey-builder\\node_modules\\@trpc\\server\\dist\\initTRPC--HrEu8sH.cjs:256:18)\n    at async callRecursive (C:\\Users\\Saurabh Jauhari\\Downloads\\torrentz\\user-journey-builder\\node_modules\\@trpc\\server\\dist\\initTRPC--HrEu8sH.cjs:256:18)\n    at async procedure (C:\\Users\\Saurabh Jauhari\\Downloads\\torrentz\\user-journey-builder\\node_modules\\@trpc\\server\\dist\\initTRPC--HrEu8sH.cjs:281:18)\n    at async C:\\Users\\Saurabh Jauhari\\Downloads\\torrentz\\user-journey-builder\\node_modules\\@trpc\\server\\dist\\tracked-D4WGA_Z-.cjs:298:13\n    at async main (C:\\Users\\Saurabh Jauhari\\Downloads\\torrentz\\user-journey-builder\\test-flow.ts:57:24)",
+  "cause": {},
+  "raw": {
+    "cause": {},
+    "code": "INTERNAL_SERVER_ERROR",
+    "name": "TRPCError"
+  }
+}

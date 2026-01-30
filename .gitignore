@@ -42,12 +42,5 @@ yarn-error.log*
 next-env.d.ts
 
 # prisma
-prisma/dev.db
-prisma/dev.db-journal
 prisma/migrations/dev.db
 prisma/migrations/dev.db-journal
-
-# temp debug files
-debug_output.txt
-last_run_error.txt
-last_run_status.txt

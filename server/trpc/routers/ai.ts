@@ -196,6 +196,43 @@ function buildJourneyPrompt(interviewData: Record<string, any>): string {
     return String(value).trim() || fallback;
   };
 
+  const recommendBusinessModel = () => {
+    const productText = `${getValueOrDefault("productType")} ${getValueOrDefault("description")}`.toLowerCase();
+    const userText = `${getValueOrDefault("userType")} ${getValueOrDefault("problem")}`.toLowerCase();
+
+    if (productText.includes("api") || productText.includes("usage") || productText.includes("credits")) {
+      return {
+        model: "Usage-Based Credits",
+        rationale: "Value is delivered per-use and usage varies by user. Credits keep pricing aligned with value.",
+        conversionPath: "free credits → use → credits low → pay → continue use",
+      };
+    }
+
+    if (productText.includes("marketplace") || productText.includes("booking") || productText.includes("transactions")) {
+      return {
+        model: "Marketplace Fee",
+        rationale: "Core value happens at the transaction moment. Monetize per transaction or take a platform fee.",
+        conversionPath: "discover → list/browse → transaction → fee",
+      };
+    }
+
+    if (userText.includes("enterprise") || userText.includes("b2b") || productText.includes("saas")) {
+      return {
+        model: "Free Trial → Paid",
+        rationale: "Users need full product experience before committing; trials drive trust and conversion.",
+        conversionPath: "signup → trial → value → upgrade → payment",
+      };
+    }
+
+    return {
+      model: "Freemium → Upgrade",
+      rationale: "Low-friction entry is best for broad acquisition; monetize after clear value moments.",
+      conversionPath: "signup → use free tier → hit limit → upgrade",
+    };
+  };
+
+  const recommendedModel = recommendBusinessModel();
+
   // For chat interviews, primaryAction IS the first aha moment action
   const firstAhaAction = getValueOrDefault('primaryAction') || getValueOrDefault('firstAction');
 
@@ -213,6 +250,11 @@ Product: "${productType}"
 What it does: "${description}"
 Problem solved: "${problem}"
 
+BUSINESS MODEL INTELLIGENCE (use this to shape the conversion path):
+Recommended model: "${recommendedModel.model}"
+Why it fits: "${recommendedModel.rationale}"
+Conversion path: "${recommendedModel.conversionPath}"
+
 USER INFO:
 User type: "${userType}"
 User pain: "${problem}"
@@ -225,15 +267,26 @@ CRITICAL REQUIREMENTS:
 3. Show how "${firstAhaAction}" creates value
 4. Include realistic decision points and friction specific to this product
 5. NO GENERIC CONTENT - be specific to this product type
+6. Cover ALL funnel stages: ACQUISITION → ACTIVATION → RETENTION → MONETIZATION → REFERRAL
+7. Include at least one dropout path per funnel stage with a recovery intervention
+8. Include standard touchpoints: email, payment, form submission, sharing/referral
+9. Label each node with data.funnelStage (ACQUISITION/ACTIVATION/RETENTION/MONETIZATION/REFERRAL)
+10. Use swimlane positioning:
+    - ACQUISITION y=0
+    - ACTIVATION y=250
+    - RETENTION y=500
+    - MONETIZATION y=750
+    - REFERRAL y=1000
+    x should increase left-to-right in each stage (x=0, 250, 500, ...)
 
-Create 10-15 nodes. ALLOWED node types ONLY: JOURNEY_START, ONBOARDING_STEP, ACTION, DECISION_POINT, INTERVENTION, CONVERSION, MILESTONE, TOUCHPOINT, EXIT_POINT
+Create 18-28 nodes. ALLOWED node types ONLY: JOURNEY_START, ONBOARDING_STEP, ACTION, DECISION_POINT, INTERVENTION, CONVERSION, MILESTONE, TOUCHPOINT, EXIT_POINT
 Use stages: ENTRY, PROSPECT, CUSTOMER, RECURRING, UPGRADED, TORCHBEARER
 
 Return ONLY valid JSON (no markdown):
 {
   "nodes": [
-    {"id": "n1", "type": "JOURNEY_START", "label": "Discover App", "description": "Users find ${productType} through ${discoveryChannels}", "position": {"x": 0, "y": 0}, "stage": "ENTRY"},
-    {"id": "n2", "type": "ONBOARDING_STEP", "label": "Sign Up", "description": "Create account for ${productType}", "position": {"x": 200, "y": 0}, "stage": "PROSPECT"}
+    {"id": "n1", "type": "JOURNEY_START", "label": "Discover ${productType}", "description": "Users discover ${productType} via ${discoveryChannels}", "position": {"x": 0, "y": 0}, "stage": "ENTRY", "data": {"funnelStage": "ACQUISITION"}},
+    {"id": "n2", "type": "ONBOARDING_STEP", "label": "Sign Up", "description": "User signs up to access ${productType}", "position": {"x": 250, "y": 0}, "stage": "PROSPECT", "data": {"funnelStage": "ACQUISITION"}}
   ],
   "connections": [
     {"id": "c1", "sourceId": "n1", "targetId": "n2", "label": "User creates account"}

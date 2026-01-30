@@ -7,8 +7,12 @@ const Card = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
+    // Updated:
+    // - rounded-2xl (vs rounded-lg) for softer corners
+    // - shadow-xl + shadow-black/5 for diffuse Apple shadow
+    // - backdrop-blur-md for glass effect if bg is transparent
     className={cn(
-      "rounded-lg border border-input bg-card text-card-foreground shadow-sm",
+      "rounded-2xl border border-border/50 bg-card/80 backdrop-blur-xl text-card-foreground shadow-xl shadow-black/5",
       className
     )}
     {...props}
@@ -32,7 +36,7 @@ const CardTitle = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLHeadingElement>
 >(({ className, ...props }, ref) => (
-  <h2
+  <div
     ref={ref}
     className={cn("font-semibold leading-none tracking-tight", className)}
     {...props}

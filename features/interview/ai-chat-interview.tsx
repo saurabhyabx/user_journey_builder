@@ -105,13 +105,29 @@ export function AIChatInterview({ journeyId, onComplete, onPartialUpdate }: AICh
   }, []);
 
   const handleSendMessage = async () => {
-    if (!input.trim()) return;
+    const trimmedInput = input.trim();
+    
+    // Validate input is not empty
+    if (!trimmedInput) return;
+    
+    // Validate minimum length (at least 3 characters)
+    if (trimmedInput.length < 3) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `ai-error-${Date.now()}`,
+          type: "ai",
+          content: "Please provide a more detailed answer (at least 3 characters).",
+        },
+      ]);
+      return;
+    }
 
     // Add user message
     const userMessage: Message = {
       id: `user-${Date.now()}`,
       type: "user",
-      content: input,
+      content: trimmedInput,
     };
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
@@ -121,7 +137,7 @@ export function AIChatInterview({ journeyId, onComplete, onPartialUpdate }: AICh
     const current = QUESTION_FLOW[currentQuestion];
     const updatedData = {
       ...interviewData,
-      [current.key]: input,
+      [current.key]: trimmedInput,
     };
     setInterviewData(updatedData);
 
@@ -144,7 +160,7 @@ export function AIChatInterview({ journeyId, onComplete, onPartialUpdate }: AICh
     } catch (err) {
       console.error("AI Analysis failed, falling back to heuristics", err);
       if (onPartialUpdate) {
-        const { nodes, edges } = generatePartialUpdate(current.key, input, updatedData);
+        const { nodes, edges } = generatePartialUpdate(current.key, trimmedInput, updatedData);
         onPartialUpdate(nodes, edges);
       }
     }

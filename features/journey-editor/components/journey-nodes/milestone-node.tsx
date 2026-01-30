@@ -3,7 +3,17 @@ import { NodeProps, Handle, Position } from "reactflow";
 import { Card } from "@/components/ui/card";
 import { Flag } from "lucide-react";
 
+const STAGE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  "ACQUISITION": { bg: "#DBEAFE", text: "#0369A1", border: "#10B981" },
+  "ACTIVATION": { bg: "#DBEAFE", text: "#0369A1", border: "#3B82F6" },
+  "RETENTION": { bg: "#EDE9FE", text: "#6D28D9", border: "#8B5CF6" },
+  "MONETIZATION": { bg: "#FEF3C7", text: "#92400E", border: "#F59E0B" },
+  "REFERRAL": { bg: "#FEE2E2", text: "#7F1D1D", border: "#EF4444" },
+};
+
 export function MilestoneNode({ data }: NodeProps) {
+  const stageColor = STAGE_COLORS[data.funnelStage] || STAGE_COLORS["RETENTION"];
+  
   const stageColors: Record<string, { bg: string; border: string; text: string; icon: string }> = {
     ENTRY: { bg: "bg-slate-50", border: "border-slate-400", text: "text-slate-900", icon: "📍" },
     PROSPECT: { bg: "bg-cyan-50", border: "border-cyan-400", text: "text-cyan-900", icon: "🔍" },
@@ -17,7 +27,15 @@ export function MilestoneNode({ data }: NodeProps) {
   const colors = stageColors[stage] || stageColors.ENTRY;
 
   return (
-    <Card className={`px-4 py-2 min-w-[160px] border-2 ${colors.border} ${colors.bg} shadow-lg`}>
+    <Card className={`px-4 py-2 min-w-[160px] border-2 ${colors.border} ${colors.bg} shadow-lg relative`}>
+      {data.funnelStage && (
+        <div 
+          className="absolute -top-2 right-2 px-2 py-1 rounded text-xs font-semibold"
+          style={{ backgroundColor: stageColor.bg, color: stageColor.text, border: `1px solid ${stageColor.border}` }}
+        >
+          {data.funnelStage}
+        </div>
+      )}
       <div className="flex items-center gap-2">
         <span className="text-lg">{colors.icon}</span>
         <div>
