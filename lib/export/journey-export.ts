@@ -7,6 +7,7 @@
  */
 
 import { Node, Edge } from "reactflow";
+import { toPng } from 'html-to-image';
 
 interface ExportNode {
   id: string;
@@ -191,4 +192,46 @@ export function downloadCSV(
   document.body.appendChild(element);
   element.click();
   document.body.removeChild(element);
+}
+
+export async function downloadPNG(journeyName: string) {
+  const element = document.querySelector('.react-flow__viewport') as HTMLElement;
+  if (!element) {
+    console.error("ReactFlow viewport not found");
+    return;
+  }
+
+  try {
+    const dataUrl = await toPng(element, {
+      backgroundColor: '#ffffff',
+      style: {
+        transform: 'translate(0, 0) scale(1)', // Reset transform to capture everything? 
+        // Actually, without getting complex bounds, just capturing the element *might* be clipped or zoomed.
+        // Let's rely on default behavior first: it captures the DOM element as-is.
+        // But the viewport usually has a transform applied by ReactFlow (pan/zoom).
+        // If we want high-res, we need to do the getRect approach.
+        // For a V1 'Verification', let's accept 'Visible View' or 'Current Zoom' quirks 
+        // OR better: use the wrapper class .react-flow
+      }
+    });
+
+    // Actually, capturing .react-flow__renderer (the whole standard container) usually works best for WYSIWYG
+    const renderer = document.querySelector('.react-flow') as HTMLElement;
+    const finalElement = renderer || element;
+
+    // We use toPng from the library
+    // We need to dynamically import it because this file might be imported in environments where 'html-to-image' causes issues if not careful?
+    // No, standard import is fine.
+
+    const resultUrl = await toPng(finalElement, {
+      backgroundColor: '#fff',
+    });
+
+    const a = document.createElement('a');
+    a.setAttribute('download', `${journeyName}.png`);
+    a.setAttribute('href', resultUrl);
+    a.click();
+  } catch (err) {
+    console.error("Failed to export PNG:", err);
+  }
 }

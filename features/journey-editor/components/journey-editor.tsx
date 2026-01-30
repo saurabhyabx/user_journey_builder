@@ -27,7 +27,8 @@ import {
   AlertCircle,
   FileJson,
   FileText,
-  Lightbulb
+  Lightbulb,
+  Image
 } from "lucide-react";
 import {
   generateMermaidDiagram,
@@ -36,6 +37,7 @@ import {
   downloadMermaid,
   downloadJSON,
   downloadCSV,
+  downloadPNG,
 } from "@/lib/export/journey-export";
 
 // Import custom node types (we'll create these next)
@@ -249,7 +251,7 @@ export function JourneyEditor({ journeyId }: JourneyEditorProps) {
     );
   };
 
-  const handleExport = (format: "mermaid" | "json" | "csv") => {
+  const handleExport = (format: "mermaid" | "json" | "csv" | "png") => {
     const journeyName = journey?.title || "journey";
 
     switch (format) {
@@ -275,6 +277,9 @@ export function JourneyEditor({ journeyId }: JourneyEditorProps) {
           edges as ExportEdge[]
         );
         downloadCSV(journeyName, csvData);
+        break;
+      case "png":
+        downloadPNG(journeyName);
         break;
     }
   };
@@ -381,6 +386,16 @@ export function JourneyEditor({ journeyId }: JourneyEditorProps) {
               >
                 <Download className="h-4 w-4 mr-1" />
                 CSV
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleExport("png")}
+                title="Download as PNG Image"
+                className="border-slate-300"
+              >
+                <Image className="h-4 w-4 mr-1" />
+                PNG
               </Button>
             </Card>
 

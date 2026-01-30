@@ -24,7 +24,7 @@ export const aiRouter = router({
         console.log("📝 Interview data keys:", Object.keys(input.interviewData));
 
         const message = await anthropic.messages.create({
-          model: "claude-3-haiku-20240307",
+          model: "claude-opus-4-20250514",
           max_tokens: 4000,
           system: `You are an expert user journey mapper. You analyze product information and create detailed, comprehensive user journey diagrams. 
             
@@ -45,11 +45,37 @@ Output ONLY the JSON object. Do not include markdown code blocks.`,
         });
 
         const textContent = message.content[0].type === 'text' ? message.content[0].text : "{}";
-        console.log("✅ Claude response received, parsing JSON...");
-        
-        // Naive cleanup for markdown if it slips through
-        const cleanJson = textContent.replace(/```json/g, "").replace(/```/g, "").trim();
-        const result = JSON.parse(cleanJson);
+        console.log("✅ Claude response received. Length:", textContent.length);
+
+        // Robust JSON Extraction
+        let cleanJson = textContent.trim();
+
+        // 1. Remove markdown code blocks if present
+        if (cleanJson.includes("```json")) {
+          cleanJson = cleanJson.replace(/```json/g, "").replace(/```/g, "");
+        } else if (cleanJson.includes("```")) {
+          cleanJson = cleanJson.replace(/```/g, "");
+        }
+
+        // 2. Extract content between first { and last }
+        const firstBrace = cleanJson.indexOf("{");
+        const lastBrace = cleanJson.lastIndexOf("}");
+        if (firstBrace !== -1 && lastBrace !== -1) {
+          cleanJson = cleanJson.substring(firstBrace, lastBrace + 1);
+        }
+
+        let result;
+        try {
+          result = JSON.parse(cleanJson);
+        } catch (parseError: any) {
+          console.error("❌ JSON Parse Failed!");
+          console.error("Parse Error:", parseError.message);
+          console.error("Raw Response Length:", textContent.length);
+          console.error("Raw Response Start:", textContent.substring(0, 1000));
+          console.error("Raw Response End:", textContent.substring(textContent.length - 500));
+          console.error("Cleaned JSON Start:", cleanJson.substring(0, 500));
+          throw new Error("Failed to parse AI response as JSON. Please try again.");
+        }
 
         console.log("📊 Parsed journey with", result.nodes?.length || 0, "nodes");
 
@@ -66,15 +92,15 @@ Output ONLY the JSON object. Do not include markdown code blocks.`,
         // Create nodes and connections
         // Map Claude's node IDs to database node IDs
         const idMapping: Record<string, string> = {};
-        
+
         if (result.nodes && result.nodes.length > 0) {
           console.log("💾 Creating", result.nodes.length, "nodes in database...");
-          
+
           // Delete any existing nodes for this journey first
           await ctx.db.journeyNode.deleteMany({
             where: { journeyId: input.journeyId },
           });
-          
+
           const createdNodes = await ctx.db.journeyNode.createMany({
             data: result.nodes.map((node: any, index: number) => ({
               journeyId: input.journeyId,
@@ -87,14 +113,14 @@ Output ONLY the JSON object. Do not include markdown code blocks.`,
               stage: node.stage,
             })),
           });
-          
+
           // Build mapping from Claude IDs to database IDs
           // Fetch ONLY the nodes we just created for this journey, in creation order
           const dbNodes = await ctx.db.journeyNode.findMany({
             where: { journeyId: input.journeyId },
             orderBy: { createdAt: 'asc' },
           });
-          
+
           console.log("📍 Mapping", result.nodes.length, "Claude IDs to DB IDs");
           result.nodes.forEach((node: any, index: number) => {
             if (dbNodes[index]) {
@@ -106,12 +132,12 @@ Output ONLY the JSON object. Do not include markdown code blocks.`,
 
         if (result.connections && result.connections.length > 0) {
           console.log("🔗 Creating", result.connections.length, "connections in database...");
-          
+
           // Delete existing connections
           await ctx.db.journeyConnection.deleteMany({
             where: { journeyId: input.journeyId },
           });
-          
+
           await ctx.db.journeyConnection.createMany({
             data: result.connections.map((conn: any) => ({
               journeyId: input.journeyId,
@@ -122,7 +148,7 @@ Output ONLY the JSON object. Do not include markdown code blocks.`,
               type: conn.type || "default",
             })),
           });
-          
+
           // Verify connections are valid
           const createdConnections = await ctx.db.journeyConnection.findMany({
             where: { journeyId: input.journeyId },
@@ -131,7 +157,7 @@ Output ONLY the JSON object. Do not include markdown code blocks.`,
             where: { journeyId: input.journeyId },
             select: { id: true },
           })).map((n: any) => n.id));
-          
+
           let validCount = 0;
           let invalidCount = 0;
           createdConnections.forEach((conn: any) => {
@@ -188,7 +214,6 @@ Output ONLY the JSON object. Do not include markdown code blocks.`,
 });
 
 function buildJourneyPrompt(interviewData: Record<string, any>): string {
-  // Handle both detailed form data and simple chat data
   const getValueOrDefault = (key: string, fallback: string = "Not specified") => {
     const value = interviewData[key];
     if (!value) return fallback;
@@ -196,102 +221,79 @@ function buildJourneyPrompt(interviewData: Record<string, any>): string {
     return String(value).trim() || fallback;
   };
 
-  const recommendBusinessModel = () => {
-    const productText = `${getValueOrDefault("productType")} ${getValueOrDefault("description")}`.toLowerCase();
-    const userText = `${getValueOrDefault("userType")} ${getValueOrDefault("problem")}`.toLowerCase();
-
-    if (productText.includes("api") || productText.includes("usage") || productText.includes("credits")) {
-      return {
-        model: "Usage-Based Credits",
-        rationale: "Value is delivered per-use and usage varies by user. Credits keep pricing aligned with value.",
-        conversionPath: "free credits → use → credits low → pay → continue use",
-      };
-    }
-
-    if (productText.includes("marketplace") || productText.includes("booking") || productText.includes("transactions")) {
-      return {
-        model: "Marketplace Fee",
-        rationale: "Core value happens at the transaction moment. Monetize per transaction or take a platform fee.",
-        conversionPath: "discover → list/browse → transaction → fee",
-      };
-    }
-
-    if (userText.includes("enterprise") || userText.includes("b2b") || productText.includes("saas")) {
-      return {
-        model: "Free Trial → Paid",
-        rationale: "Users need full product experience before committing; trials drive trust and conversion.",
-        conversionPath: "signup → trial → value → upgrade → payment",
-      };
-    }
-
-    return {
-      model: "Freemium → Upgrade",
-      rationale: "Low-friction entry is best for broad acquisition; monetize after clear value moments.",
-      conversionPath: "signup → use free tier → hit limit → upgrade",
-    };
-  };
-
-  const recommendedModel = recommendBusinessModel();
-
-  // For chat interviews, primaryAction IS the first aha moment action
-  const firstAhaAction = getValueOrDefault('primaryAction') || getValueOrDefault('firstAction');
-
   const productType = getValueOrDefault('productType');
   const description = getValueOrDefault('description');
   const problem = getValueOrDefault('problem');
   const userType = getValueOrDefault('userType');
   const discoveryChannels = getValueOrDefault('discoveryChannels');
 
+  // For chat interviews, primaryAction IS the first aha moment action
+  const firstAhaAction = getValueOrDefault('primaryAction') || getValueOrDefault('firstAction');
+
   return `
-You are an expert user journey designer. Your task: Create a SPECIFIC, DETAILED, REALISTIC user journey for this exact product. Make it concrete - not generic.
+You are an empathetic Product Strategist and User Experience Expert. 
+Your goal is NOT to build a "sales funnel". Your goal is to map a "User Success Path".
+Revenue is a byproduct of user success.
 
-PRODUCT INFO:
+CORE PHILOSOPHY (FIRST PRINCIPLES):
+1. Users don't buy products; they "hire" products to make progress in their lives.
+2. Every journey starts with a "Struggle" (Anxiety) before discovery.
+3. You must "Give Value" (Reward) before you "Take Value" (Revenue).
+4. Trust is earned in drops and lost in buckets.
+
+CONTEXT:
 Product: "${productType}"
-What it does: "${description}"
-Problem solved: "${problem}"
+Value Proposition: "${description}"
+User Persona: "${userType}"
+The Struggle (Problem): "${problem}"
+Discovery Channel: "${discoveryChannels}"
+The "Aha" Moment: "${firstAhaAction}"
 
-BUSINESS MODEL INTELLIGENCE (use this to shape the conversion path):
-Recommended model: "${recommendedModel.model}"
-Why it fits: "${recommendedModel.rationale}"
-Conversion path: "${recommendedModel.conversionPath}"
+TASK:
+Create a detailed, 18-25 step user journey map that follows this psychological arc:
 
-USER INFO:
-User type: "${userType}"
-User pain: "${problem}"
-Discovery method: "${discoveryChannels}"
-First key action: "${firstAhaAction}"
+PHASE 1: THE STRUGGLE & HOPE (Acquisition/Entry)
+- Start BEFORE the product. Show the user feeling the pain of "${problem}".
+- Show the "Spark" of discovery via ${discoveryChannels}.
+- The user is skeptical but hopeful.
 
-CRITICAL REQUIREMENTS:
-1. EVERY node description must mention "${productType}" or its specific features/workflow
-2. Match the tone and mindset of "${userType}"
-3. Show how "${firstAhaAction}" creates value
-4. Include realistic decision points and friction specific to this product
-5. NO GENERIC CONTENT - be specific to this product type
-6. Cover ALL funnel stages: ACQUISITION → ACTIVATION → RETENTION → MONETIZATION → REFERRAL
-7. Include at least one dropout path per funnel stage with a recovery intervention
-8. Include standard touchpoints: email, payment, form submission, sharing/referral
-9. Label each node with data.funnelStage (ACQUISITION/ACTIVATION/RETENTION/MONETIZATION/REFERRAL)
-10. Use swimlane positioning:
-    - ACQUISITION y=0
-    - ACTIVATION y=250
-    - RETENTION y=500
-    - MONETIZATION y=750
-    - REFERRAL y=1000
-    x should increase left-to-right in each stage (x=0, 250, 500, ...)
+PHASE 2: THE COMMITMENT (Activation/Onboarding)
+- The user has to do "Work" (Sign up, setup). This is friction.
+- Show a node where they might hesitate or drop out (Anxiety spikes).
+- Show the "First Victory" - the moment they successfully do "${firstAhaAction}".
 
-Create 18-28 nodes. ALLOWED node types ONLY: JOURNEY_START, ONBOARDING_STEP, ACTION, DECISION_POINT, INTERVENTION, CONVERSION, MILESTONE, TOUCHPOINT, EXIT_POINT
-Use stages: ENTRY, PROSPECT, CUSTOMER, RECURRING, UPGRADED, TORCHBEARER
+PHASE 3: THE HABIT & TRUST (Retention)
+- The user sees the value. They feel relief/excitement.
+- They start using it regularly.
+- Trust is established.
 
-Return ONLY valid JSON (no markdown):
+PHASE 4: THE INVESTMENT (Monetization/Growth)
+- ONLY NOW, after value is proven, do you ask for money or deeper data.
+- Show the upgrade/conversion event as a natural next step to get MORE value, not a paywall blocking basic value.
+- Final stage: They become a "Torchbearer" (Referral), telling others because they are genuinely helped.
+
+REQUIREMENTS:
+1. **Node Descriptions**: Must describe the USER'S MINDSET/EMOTION, not just the interface action. 
+   - BAD: "User clicks signup."
+   - GOOD: "User feels overwhelmed by current chaos, sees the landing page promise, and decides to give it a try."
+2. **Specifics**: Mention "${productType}" features specifically. No generic "User uses feature" text.
+3. **Logic**: Ensure the flow makes sense. Don't ask for payment before the "Aha Moment".
+4. **Swimlanes**: Use these Y-coordinates to group phases:
+   - THE STRUGGLE / DISCOVERY (Acquisition): y=0
+   - THE WORK / "AHA" (Activation): y=250
+   - THE HABIT (Retention): y=500
+   - THE INVESTMENT (Monetization): y=750
+   - THE TORCHBEARER (Referral): y=1000
+
+Format as JSON only:
 {
   "nodes": [
-    {"id": "n1", "type": "JOURNEY_START", "label": "Discover ${productType}", "description": "Users discover ${productType} via ${discoveryChannels}", "position": {"x": 0, "y": 0}, "stage": "ENTRY", "data": {"funnelStage": "ACQUISITION"}},
-    {"id": "n2", "type": "ONBOARDING_STEP", "label": "Sign Up", "description": "User signs up to access ${productType}", "position": {"x": 250, "y": 0}, "stage": "PROSPECT", "data": {"funnelStage": "ACQUISITION"}}
+    {"id": "n1", "type": "JOURNEY_START", "label": "The Struggle", "description": "User is frustrated by ${problem} and looking for a solution.", "position": {"x": 0, "y": 0}, "stage": "ENTRY", "data": {"funnelStage": "ACQUISITION"}}
   ],
   "connections": [
-    {"id": "c1", "sourceId": "n1", "targetId": "n2", "label": "User creates account"}
+    {"id": "c1", "sourceId": "n1", "targetId": "n2", "label": "Searches online"}
   ],
-  "insights": ["insight1"],
-  "recommendations": ["recommendation1"]
+  "insights": ["Key insight about user anxiety..."],
+  "recommendations": ["Make the signup friction lower because..."]
 }`;
 }

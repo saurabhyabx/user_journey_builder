@@ -1,45 +1,57 @@
-
 import "dotenv/config";
 import { db } from "../lib/db";
 import { journeyRouter } from "../server/trpc/routers/journey";
+import { aiRouter } from "../server/trpc/routers/ai";
 
 async function main() {
-    console.log("🚀 Testing Create Journey Procedure...");
+    console.log("🚀 Testing Journey + AI Generation...");
 
     // Mock Context
     const ctx = {
         db,
         headers: new Headers(),
-        // Add other context fields if defined in your createTRPCContext
     };
 
-    const caller = journeyRouter.createCaller(ctx);
+    const journeyCaller = journeyRouter.createCaller(ctx);
+    const aiCaller = aiRouter.createCaller(ctx);
 
     try {
-        const title = "Automated Backend Test " + Date.now();
-        console.log(`invoking create({ title: "${title}" })`);
+        const title = "AI Principle Test " + Date.now();
+        console.log(`\nStep 1: Creating Journey...`);
 
-        const journey = await caller.create({
+        const journey = await journeyCaller.create({
             title,
-            description: "Created via verifcation script due to browser tool limitation"
+            description: "Testing First Principles Prompt"
         });
 
-        console.log("✅ Journey Created Successfully!");
-        console.log("Jump ID:", journey.id);
-        console.log("Title:", journey.title);
-        console.log("Status:", journey.status);
+        console.log("✅ Journey Created:", journey.id);
 
-        // Verify in DB directly
-        const dbCheck = await db.journey.findUnique({ where: { id: journey.id } });
-        if (dbCheck) {
-            console.log("✅ Database Verification: Found record in DB.");
-        } else {
-            console.error("❌ Database Verification: Record NOT found!");
-            process.exit(1);
+        console.log(`\nStep 2: Invoking AI Generation (The Brain)...`);
+
+        const testInterviewData = {
+            productType: "SaaS Project Management Tool",
+            userType: "Remote Teams",
+            discoveryChannels: "LinkedIn",
+            primaryAction: "Sign up trial",
+            description: "A collaborative tool",
+            problem: "Chaos and lack of visibility"
+        };
+
+        const result = await aiCaller.generateJourney({
+            journeyId: journey.id,
+            interviewData: testInterviewData
+        });
+
+        console.log("\n✅ AI Generation Successful!");
+        console.log("Nodes generated:", result.nodes?.length);
+        console.log("Connections generated:", result.connections?.length);
+
+        if (result.nodes?.length > 0) {
+            console.log("SAMPLE NODE DESC:", result.nodes[0].description);
         }
 
     } catch (error) {
-        console.error("❌ Failed to create journey:", error);
+        console.error("❌ Test Failed:", error);
         process.exit(1);
     }
 }

@@ -1,10 +1,22 @@
 "use client";
 
-import React from "react";
-import { Card } from "@/components/ui/card";
-import { X, TrendingUp, AlertTriangle, Target, Zap, Share2 } from "lucide-react";
+import React, { useMemo } from "react";
+import {
+  X,
+  TrendingUp,
+  AlertTriangle,
+  CheckCircle2,
+  Lightbulb,
+  ArrowRight,
+  Zap,
+  Target,
+  Clock,
+  DollarSign,
+  Users,
+  AlertOctagon,
+  Sparkles
+} from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { BUSINESS_MODELS, recommendModel } from "@/lib/business-models";
 
 interface StrategicInsightsPanelProps {
   journeyId: string;
@@ -12,212 +24,323 @@ interface StrategicInsightsPanelProps {
   onClose: () => void;
 }
 
+interface BusinessInsight {
+  type: "critical" | "warning" | "success" | "opportunity";
+  title: string;
+  description: string;
+  action: string;
+  impact: "high" | "medium" | "low";
+}
+
 export function StrategicInsightsPanel({ journeyId, nodes, onClose }: StrategicInsightsPanelProps) {
-  // Fetch journey details to get interview data for recommendation
-  // We use the `getById` query but we only need the description/title/etc. 
-  // Ideally, the saved interview responses should be stored or accessible. 
-  // For this MVF (Minimum Viable Feature), we'll infer from what we have 
-  // OR assume the backend stores interview data in a way we can read.
-  // The current `getById` returns `nodes` and `connections`. 
-  // Let's assume the interview analysis is stored in `aiResponse` or similar, 
-  // OR we just use a heuristic based on the nodes for now if data is missing.
-
-  // Actually, let's fetch the interview response if possible, or just default to Freemium 
-  // if we can't find the metadata. 
-  // Since `journeyRouter.getById` doesn't strictly return interview data, 
-  // we might need to rely on a default or expand the API. 
-  // However, `features/interview/ai-chat-interview` saves responses.
-
-  // Let's grab the journey to see if we have description/context
   const { data: journey } = trpc.journey.getById.useQuery({ id: journeyId });
 
-  // Heuristic: Use title/description for recommendation if available
-  const recommendedKey = recommendModel(
-    journey?.description || "",
-    "",
-    ""
-  );
-  const model = BUSINESS_MODELS[recommendedKey];
+  // Extract AI response data
+  const aiResponse = journey?.aiResponse as any;
+  const aiInsights: string[] = aiResponse?.insights || [];
+  const aiRecommendations: string[] = aiResponse?.recommendations || [];
 
-  // Calculate funnel stage distribution
-  const stageCount: Record<string, number> = nodes.reduce((acc: Record<string, number>, node) => {
-    const stage = node.data?.funnelStage || "UNKNOWN";
-    acc[stage] = (acc[stage] || 0) + 1;
-    return acc;
-  }, {});
+  // Analyze the journey and generate business insights
+  const businessInsights = useMemo(() => {
+    const insights: BusinessInsight[] = [];
 
-  const totalNodes = nodes.length;
+    // Count nodes by stage
+    const stageCount: Record<string, number> = {};
+    const typeCount: Record<string, number> = {};
 
-  // Get critical moments (conversion, intervention points)
-  const criticalNodes = nodes.filter((n) =>
-    ["CONVERSION", "INTERVENTION", "DECISION_POINT"].includes(n.data?.type)
-  );
+    nodes.forEach((node) => {
+      const stage = node.data?.funnelStage || "UNKNOWN";
+      const type = node.data?.type || node.type || "UNKNOWN";
+      stageCount[stage] = (stageCount[stage] || 0) + 1;
+      typeCount[type] = (typeCount[type] || 0) + 1;
+    });
 
-  // Calculate dropout risks (nodes without outbound connections)
-  const exitNodes = nodes.filter((n) => n.data?.type === "EXIT_POINT");
+    // Get node types for analysis
+    const hasConversion = (typeCount["CONVERSION"] || 0) > 0;
+    const hasDecisionPoints = (typeCount["DECISION_POINT"] || 0) > 0;
+    const hasInterventions = (typeCount["INTERVENTION"] || 0) > 0;
+    const hasExitPoints = (typeCount["EXIT_POINT"] || 0) > 0;
+    const hasTouchpoints = (typeCount["TOUCHPOINT"] || 0) > 0;
+    const hasOnboarding = (typeCount["ONBOARDING_STEP"] || 0) > 0;
+
+    // Analyze funnel coverage
+    const hasAcquisition = (stageCount["ACQUISITION"] || 0) >= 2;
+    const hasActivation = (stageCount["ACTIVATION"] || 0) >= 2;
+    const hasRetention = (stageCount["RETENTION"] || 0) >= 2;
+    const hasMonetization = (stageCount["MONETIZATION"] || 0) >= 1;
+    const hasReferral = (stageCount["REFERRAL"] || 0) >= 1;
+
+    // Find first conversion node index (rough "time to monetization")
+    const conversionIndex = nodes.findIndex(
+      n => n.data?.type === "CONVERSION" || n.data?.funnelStage === "MONETIZATION"
+    );
+
+    // Find first value/milestone node
+    const valueIndex = nodes.findIndex(
+      n => n.data?.type === "MILESTONE" || n.data?.funnelStage === "ACTIVATION"
+    );
+
+    // === CRITICAL ISSUES ===
+
+    if (!hasConversion) {
+      insights.push({
+        type: "critical",
+        title: "No Revenue Path Defined",
+        description: "Your journey has no conversion points. Without a clear monetization path, you won't capture value from engaged users.",
+        action: "Add a CONVERSION node after users experience the core value (Aha moment).",
+        impact: "high"
+      });
+    }
+
+    if (conversionIndex !== -1 && valueIndex !== -1 && conversionIndex < valueIndex) {
+      insights.push({
+        type: "critical",
+        title: "Asking for Money Before Delivering Value",
+        description: "Your journey asks users to pay BEFORE they experience the product's value. This kills conversion rates.",
+        action: "Move the monetization step AFTER the Aha moment. Give value first, then ask for payment.",
+        impact: "high"
+      });
+    }
+
+    if (!hasActivation) {
+      insights.push({
+        type: "critical",
+        title: "Weak Activation Flow",
+        description: "Users who don't activate in the first session rarely return. Your activation stage needs more depth.",
+        action: "Add 2-3 nodes showing the path to the first 'Aha moment' - the moment users feel value.",
+        impact: "high"
+      });
+    }
+
+    // === WARNINGS ===
+
+    if (!hasRetention) {
+      insights.push({
+        type: "warning",
+        title: "No Retention Strategy",
+        description: "Acquiring users is 5-7x more expensive than retaining them. Without retention flows, you're burning acquisition spend.",
+        action: "Add habit loops: usage triggers, re-engagement emails, streak rewards, or community hooks.",
+        impact: "high"
+      });
+    }
+
+    if (!hasInterventions && hasExitPoints) {
+      insights.push({
+        type: "warning",
+        title: "Exit Points Without Recovery",
+        description: "You have exit points but no interventions. Every user who leaves is lost forever.",
+        action: "Add INTERVENTION nodes after each EXIT_POINT with win-back strategies (email, discount, support).",
+        impact: "medium"
+      });
+    }
+
+    if (!hasDecisionPoints) {
+      insights.push({
+        type: "warning",
+        title: "Linear Journey Ignores User Segments",
+        description: "All users are different. A linear flow treats power users and beginners the same.",
+        action: "Add DECISION_POINT nodes to personalize paths based on user behavior or persona.",
+        impact: "medium"
+      });
+    }
+
+    if (!hasTouchpoints) {
+      insights.push({
+        type: "warning",
+        title: "No Communication Touchpoints",
+        description: "Without email/push/SMS touchpoints, you have no way to bring users back to the product.",
+        action: "Add TOUCHPOINT nodes for welcome emails, onboarding drips, and re-engagement campaigns.",
+        impact: "medium"
+      });
+    }
+
+    if (!hasReferral) {
+      insights.push({
+        type: "opportunity",
+        title: "Missing Viral Growth Loop",
+        description: "Happy users are your cheapest acquisition channel. You're not leveraging them.",
+        action: "Add a REFERRAL stage: invite friends, share progress, or exclusive perks for advocates.",
+        impact: "medium"
+      });
+    }
+
+    // === SUCCESS INDICATORS ===
+
+    if (hasAcquisition && hasActivation && hasMonetization) {
+      insights.push({
+        type: "success",
+        title: "Core Funnel is Complete",
+        description: "You have Acquisition → Activation → Monetization covered. The fundamentals are in place.",
+        action: "Focus on optimizing conversion rates between stages.",
+        impact: "low"
+      });
+    }
+
+    if (hasInterventions) {
+      insights.push({
+        type: "success",
+        title: "Proactive Churn Prevention",
+        description: "You have intervention nodes to catch users before they leave. Smart.",
+        action: "Test different intervention messages to find what resonates.",
+        impact: "low"
+      });
+    }
+
+    // === OPPORTUNITIES ===
+
+    if (nodes.length < 15) {
+      insights.push({
+        type: "opportunity",
+        title: "Journey May Be Too Simple",
+        description: "Real user journeys have nuance. A sparse map might miss edge cases and drop-off points.",
+        action: "Add more detail: what happens if user doesn't complete setup? What if they churn after trial?",
+        impact: "low"
+      });
+    }
+
+    return insights;
+  }, [nodes, journey]);
+
+  // Sort insights by priority
+  const sortedInsights = useMemo(() => {
+    const typeOrder = { critical: 0, warning: 1, opportunity: 2, success: 3 };
+    return [...businessInsights].sort((a, b) => typeOrder[a.type] - typeOrder[b.type]);
+  }, [businessInsights]);
+
+  const criticalCount = sortedInsights.filter(i => i.type === "critical").length;
+  const warningCount = sortedInsights.filter(i => i.type === "warning").length;
+
+  const getInsightIcon = (type: string) => {
+    switch (type) {
+      case "critical": return <AlertOctagon className="h-5 w-5 text-red-500" />;
+      case "warning": return <AlertTriangle className="h-5 w-5 text-amber-500" />;
+      case "success": return <CheckCircle2 className="h-5 w-5 text-green-500" />;
+      case "opportunity": return <Sparkles className="h-5 w-5 text-purple-500" />;
+      default: return <Lightbulb className="h-5 w-5 text-blue-500" />;
+    }
+  };
+
+  const getInsightStyle = (type: string) => {
+    switch (type) {
+      case "critical": return "bg-red-50 border-red-200";
+      case "warning": return "bg-amber-50 border-amber-200";
+      case "success": return "bg-green-50 border-green-200";
+      case "opportunity": return "bg-purple-50 border-purple-200";
+      default: return "bg-slate-50 border-slate-200";
+    }
+  };
 
   return (
     <div className="h-full flex flex-col bg-white border-l border-slate-200 shadow-lg overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+      <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-gradient-to-r from-slate-900 to-slate-800">
         <div className="flex items-center gap-2">
-          <span className="text-lg">💡</span>
-          <h3 className="font-semibold text-slate-900">Strategic Insights</h3>
+          <Lightbulb className="h-5 w-5 text-amber-400" />
+          <h3 className="font-semibold text-white">Business Insights</h3>
         </div>
         <button
           onClick={onClose}
-          className="p-1 hover:bg-white rounded-lg transition-colors"
-          aria-label="Close insights panel"
+          className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+          aria-label="Close"
         >
-          <X className="h-4 w-4 text-slate-500 hover:text-slate-700" />
+          <X className="h-4 w-4 text-white/70 hover:text-white" />
         </button>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
+      {/* Summary Bar */}
+      <div className="flex items-center gap-4 px-4 py-3 bg-slate-50 border-b border-slate-100">
+        {criticalCount > 0 && (
+          <div className="flex items-center gap-1.5 text-red-600">
+            <AlertOctagon className="h-4 w-4" />
+            <span className="text-sm font-semibold">{criticalCount} Critical</span>
+          </div>
+        )}
+        {warningCount > 0 && (
+          <div className="flex items-center gap-1.5 text-amber-600">
+            <AlertTriangle className="h-4 w-4" />
+            <span className="text-sm font-semibold">{warningCount} Warnings</span>
+          </div>
+        )}
+        {criticalCount === 0 && warningCount === 0 && (
+          <div className="flex items-center gap-1.5 text-green-600">
+            <CheckCircle2 className="h-4 w-4" />
+            <span className="text-sm font-semibold">Journey looks healthy!</span>
+          </div>
+        )}
+      </div>
 
-        {/* BUSINESS MODEL SECTION (NEW) */}
-        <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4">
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <p className="text-xs font-bold text-blue-600 uppercase mb-1">Recommended Model</p>
-              <h4 className="flex items-center gap-2 text-lg font-bold text-slate-900">
-                <span>{model.icon}</span> {model.name}
-              </h4>
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+
+        {/* Business Insights */}
+        {sortedInsights.map((insight, idx) => (
+          <div
+            key={idx}
+            className={`rounded-xl border p-4 ${getInsightStyle(insight.type)}`}
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 mt-0.5">
+                {getInsightIcon(insight.type)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-sm font-semibold text-slate-900 mb-1">
+                  {insight.title}
+                </h4>
+                <p className="text-sm text-slate-600 mb-3 leading-relaxed">
+                  {insight.description}
+                </p>
+                <div className="flex items-start gap-2 bg-white/60 rounded-lg p-2.5 border border-slate-200/50">
+                  <ArrowRight className="h-4 w-4 text-slate-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-slate-700 font-medium">
+                    {insight.action}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
-          <p className="text-sm text-slate-600 mb-3 leading-relaxed">
-            {model.description}
-          </p>
+        ))}
 
-          <div className="bg-white/60 rounded-lg p-2 mb-3 border border-blue-100">
-            <p className="text-xs font-semibold text-slate-700 flex items-center gap-1 mb-1">
-              <Share2 className="w-3 h-3" /> Conversion Path
-            </p>
-            <p className="text-xs text-slate-600 font-mono">{model.conversionPath}</p>
-          </div>
-
-          <div>
-            <p className="text-xs font-semibold text-slate-700 mb-2">Key Touchpoints:</p>
-            <ul className="space-y-1">
-              {model.touchpoints.map((tp, idx) => (
-                <li key={idx} className="flex gap-2 text-xs text-slate-600">
-                  <span className="text-blue-500">•</span> {tp}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
-        <hr className="border-slate-100" />
-
-        {/* Journey Overview */}
-        <div>
-          <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">
-            Journey Structure
-          </h4>
-          <div className="grid grid-cols-2 gap-2">
-            {Object.entries(stageCount).map(([stage, count]: [string, number]) => (
+        {/* AI-Generated Insights (if any) */}
+        {aiInsights.length > 0 && (
+          <div className="mt-6">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
+              <Zap className="h-3.5 w-3.5 text-indigo-500" /> AI Analysis
+            </h4>
+            {aiInsights.map((insight, idx) => (
               <div
-                key={stage}
-                className="rounded-lg bg-slate-50 p-3 border border-slate-200"
+                key={idx}
+                className="mb-2 rounded-lg bg-indigo-50 border border-indigo-200 p-3"
               >
-                <p className="text-xs font-medium text-slate-600 mb-1">
-                  {stage === "ACQUISITION" && "🎯"}
-                  {stage === "ACTIVATION" && "⚡"}
-                  {stage === "RETENTION" && "🔄"}
-                  {stage === "MONETIZATION" && "💰"}
-                  {stage === "REFERRAL" && "🚀"}
-                  {stage === "UNKNOWN" && "❓"} {stage}
-                </p>
-                <p className="text-lg font-bold text-slate-900">
-                  {count}{" "}
-                  <span className="text-xs font-normal text-slate-500">
-                    ({Math.round((count / totalNodes) * 100)}%)
-                  </span>
-                </p>
+                <p className="text-sm text-indigo-900">{insight}</p>
               </div>
             ))}
           </div>
-        </div>
+        )}
 
-        {/* Total Nodes */}
-        <div className="rounded-lg bg-slate-50 p-4 border border-slate-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
-                Total Journey Nodes
-              </p>
-              <p className="text-3xl font-bold text-slate-900">{totalNodes}</p>
-            </div>
-            <Target className="h-8 w-8 text-slate-300" />
-          </div>
-        </div>
-
-        {/* Critical Moments */}
-        {criticalNodes.length > 0 && (
-          <div>
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1">
-              <Zap className="h-3 w-3 text-amber-500" /> Critical Moments
+        {/* AI Recommendations */}
+        {aiRecommendations.length > 0 && (
+          <div className="mt-4">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
+              <TrendingUp className="h-3.5 w-3.5 text-green-600" /> AI Recommendations
             </h4>
-            <div className="space-y-2">
-              {criticalNodes.slice(0, 4).map((node) => (
-                <div
-                  key={node.id}
-                  className="rounded-lg bg-amber-50 p-3 border border-amber-200"
-                >
-                  <p className="text-xs font-semibold text-amber-900 mb-1">
-                    {node.data?.label || "Unnamed"}
-                  </p>
-                  <p className="text-xs text-amber-700">
-                    {node.data?.type === "CONVERSION" &&
-                      "🎯 Revenue moment - optimize CTR"}
-                    {node.data?.type === "INTERVENTION" &&
-                      "🤝 Prevent churn - high impact"}
-                    {node.data?.type === "DECISION_POINT" &&
-                      "🔀 User segmentation point"}
-                  </p>
-                </div>
-              ))}
-              {criticalNodes.length > 4 && (
-                <p className="text-xs text-slate-500 px-3">
-                  +{criticalNodes.length - 4} more critical moments
-                </p>
-              )}
-            </div>
+            {aiRecommendations.map((rec, idx) => (
+              <div
+                key={idx}
+                className="mb-2 rounded-lg bg-green-50 border border-green-200 p-3 flex gap-2"
+              >
+                <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-green-900">{rec}</p>
+              </div>
+            ))}
           </div>
         )}
 
-        {/* Recommendations */}
-        <div>
-          <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1">
-            <TrendingUp className="h-3 w-3 text-green-600" /> Optimization Tips
-          </h4>
-          <ul className="space-y-2">
-            <li className="text-xs text-slate-600 flex gap-2">
-              <span className="text-green-600 font-bold">→</span>
-              <span>
-                {stageCount["ACTIVATION"] || 0 < 4
-                  ? "Add more activation nodes (target 4-5)"
-                  : "Activation stage looks comprehensive"}
-              </span>
-            </li>
-            <li className="text-xs text-slate-600 flex gap-2">
-              <span className="text-green-600 font-bold">→</span>
-              <span>
-                {stageCount["MONETIZATION"] || 0 < 3
-                  ? "Strengthen monetization flow (target 3-4)"
-                  : "Monetization stage is well-structured"}
-              </span>
-            </li>
-          </ul>
-        </div>
       </div>
 
       {/* Footer */}
       <div className="border-t border-slate-100 bg-slate-50 px-4 py-3">
         <p className="text-xs text-slate-500 text-center">
-          💡 These insights are AI-generated recommendations
+          Analyzed {nodes.length} nodes • {sortedInsights.length} insights found
         </p>
       </div>
     </div>

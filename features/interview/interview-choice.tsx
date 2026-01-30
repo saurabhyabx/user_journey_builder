@@ -2,16 +2,55 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { MessageSquare, FileText, Zap, BarChart3 } from "lucide-react";
+import { MessageSquare, FileText, Zap, BarChart3, Code2 } from "lucide-react";
+import { trpc } from "@/lib/trpc";
 
 interface InterviewChoiceProps {
   journeyId: string;
 }
 
+const TEST_INTERVIEW_DATA = {
+  productType: "SaaS Project Management Tool",
+  userType: "Remote Teams",
+  discoveryChannels: "LinkedIn, SEO, Word of Mouth",
+  primaryAction: "Sign up for a free trial",
+  description: "A collaborative project management tool designed specifically for remote teams to streamline communication and task tracking.",
+  problem: "Remote teams struggle with visibility and keeping everyone on the same page asynchronously.",
+};
+
 export function InterviewChoice({ journeyId }: InterviewChoiceProps) {
   const [selectedFlow, setSelectedFlow] = useState<"ai" | "form" | null>(null);
+  const [isDevLoading, setIsDevLoading] = useState(false);
+  const router = useRouter();
+
+  const saveInterview = trpc.interview.saveResponse.useMutation();
+  const generateJourney = trpc.ai.generateJourney.useMutation();
+
+  const handleDevQuickStart = async () => {
+    setIsDevLoading(true);
+    try {
+      // 1. Save dummy interview data
+      await saveInterview.mutateAsync({
+        journeyId,
+        responses: TEST_INTERVIEW_DATA,
+      });
+
+      // 2. Generate journey
+      await generateJourney.mutateAsync({
+        journeyId,
+        interviewData: TEST_INTERVIEW_DATA,
+      });
+
+      // 3. Redirect to editor
+      router.push(`/journey/${journeyId}/editor`);
+    } catch (error) {
+      console.error("Dev Quick Start Failed:", error);
+      setIsDevLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
@@ -29,11 +68,10 @@ export function InterviewChoice({ journeyId }: InterviewChoiceProps) {
           {/* Option 1: AI Chat */}
           <div className="flex flex-col">
             <Card
-              className={`flex-1 cursor-pointer transition-all hover:shadow-lg ${
-                selectedFlow === "ai"
+              className={`flex-1 cursor-pointer transition-all hover:shadow-lg ${selectedFlow === "ai"
                   ? "border-primary border-2 bg-blue-50"
                   : "border-2 border-transparent"
-              }`}
+                }`}
               onClick={() => setSelectedFlow("ai")}
             >
               <div className="p-8">
@@ -80,11 +118,10 @@ export function InterviewChoice({ journeyId }: InterviewChoiceProps) {
           {/* Option 2: Detailed Form */}
           <div className="flex flex-col">
             <Card
-              className={`flex-1 cursor-pointer transition-all hover:shadow-lg ${
-                selectedFlow === "form"
+              className={`flex-1 cursor-pointer transition-all hover:shadow-lg ${selectedFlow === "form"
                   ? "border-primary border-2 bg-purple-50"
                   : "border-2 border-transparent"
-              }`}
+                }`}
               onClick={() => setSelectedFlow("form")}
             >
               <div className="p-8">
@@ -185,6 +222,20 @@ export function InterviewChoice({ journeyId }: InterviewChoiceProps) {
             provide maximum detail.
           </p>
         </div>
+
+        {/* Developer Quick Start (Hidden Power User Feature) */}
+        <div className="mt-8 flex justify-center opacity-50 hover:opacity-100 transition-opacity">
+          <Button
+            variant="ghost"
+            className="text-xs text-slate-400 hover:text-slate-600 gap-2 border border-dashed border-slate-300"
+            onClick={handleDevQuickStart}
+            disabled={isDevLoading}
+          >
+            <Code2 className="h-3 w-3" />
+            {isDevLoading ? "Generating Default Journey..." : "Dev Mode: Quick Start"}
+          </Button>
+        </div>
+
       </div>
     </div>
   );
