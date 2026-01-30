@@ -1,0 +1,356 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// ============================================
+// USER & AUTHENTICATION
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  password      String?
+  name          String?
+  image         String?
+  
+  // Relations
+  profile       UserProfile?
+  sessions      Session[]
+  accounts      Account[]
+  journeys      Journey[]
+  purchases     Purchase[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ============================================
+// USER PROFILE & TIERS
+// ============================================
+
+model UserProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Profile Info
+  displayName     String?
+  bio             String?
+  avatar          String?
+  company         String?
+  website         String?
+  
+  // Account Status
+  tier            UserTier @default(FREE)
+  tierExpiry      DateTime?
+  
+  // Usage Tracking
+  journeysCreated Int      @default(0)
+  exportsCount    Int      @default(0)
+  storageUsed     Int      @default(0) // MB
+  
+  // Preferences
+  emailNotifications Boolean @default(true)
+  theme           String   @default("light")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+enum UserTier {
+  FREE          // 5 journeys, basic export
+  PRO           // Unlimited, all features
+  ENTERPRISE    // Custom limits
+}
+
+// ============================================
+// PURCHASES & PAYMENTS
+// ============================================
+
+model Purchase {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Purchase Details
+  type        PurchaseType
+  amount      Float
+  currency    String   @default("USD")
+  
+  // Stripe Info
+  stripePaymentId String?
+  status      PaymentStatus
+  
+  // What was purchased
+  productName String
+  features    Json?
+  
+  // Receipt
+  receiptUrl  String?
+  invoiceUrl  String?
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([userId])
+}
+
+enum PurchaseType {
+  ONE_TIME
+  SUBSCRIPTION
+  CONSULTATION
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+// ============================================
+// JOURNEY & NODES
+// ============================================
+
+model Journey {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Basic Info
+  title       String
+  description String?
+  status      JourneyStatus @default(DRAFT)
+  
+  // Interview Data
+  interviewData Json?  // Stores all interview responses
+  
+  // AI Generation
+  aiPrompt    String?
+  aiResponse  Json?
+  
+  // Relations
+  nodes       JourneyNode[]
+  connections JourneyConnection[]
+  comments    Comment[]
+  versions    JourneyVersion[]
+  
+  // Metadata
+  viewCount   Int      @default(0)
+  shareToken  String?  @unique
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([status])
+}
+
+enum JourneyStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model JourneyNode {
+  id        String   @id @default(cuid())
+  journeyId String
+  journey   Journey  @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  
+  // Node Data
+  type      NodeType
+  label     String
+  description String?
+  
+  // ReactFlow Position
+  positionX Float
+  positionY Float
+  
+  // Node-specific data
+  data      Json?
+  
+  // Lifecycle stage
+  stage     LifecycleStage?
+  
+  // Relations
+  comments  Comment[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([journeyId])
+}
+
+enum NodeType {
+  JOURNEY_START
+  ONBOARDING_STEP
+  DECISION_POINT
+  INTERVENTION
+  CONVERSION
+  MILESTONE
+  EXIT_POINT
+  ACTION
+  TOUCHPOINT
+}
+
+enum LifecycleStage {
+  ENTRY
+  PROSPECT
+  CUSTOMER
+  RECURRING
+  UPGRADED
+  TORCHBEARER
+}
+
+model JourneyConnection {
+  id        String   @id @default(cuid())
+  journeyId String
+  journey   Journey  @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  
+  // Connection Data
+  sourceId  String   // Node ID
+  targetId  String   // Node ID
+  label     String?
+  
+  // Connection type
+  type      String   @default("default")
+  
+  // ReactFlow data
+  data      Json?
+  
+  createdAt DateTime @default(now())
+  
+  @@index([journeyId])
+}
+
+// ============================================
+// COMMENTS & COLLABORATION
+// ============================================
+
+model Comment {
+  id        String   @id @default(cuid())
+  journeyId String
+  journey   Journey  @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  
+  nodeId    String?
+  node      JourneyNode? @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  
+  // Comment content
+  content   String
+  author    String   // User name
+  authorId  String   // User ID
+  
+  // AI Response
+  aiResponse String?
+  resolved   Boolean  @default(false)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([journeyId])
+  @@index([nodeId])
+}
+
+// ============================================
+// VERSION CONTROL
+// ============================================
+
+model JourneyVersion {
+  id        String   @id @default(cuid())
+  journeyId String
+  journey   Journey  @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  
+  // Version Info
+  versionNumber Int
+  name      String?
+  description String?
+  
+  // Snapshot
+  snapshot  Json     // Complete journey state
+  
+  // Metadata
+  createdBy String   // User ID
+  
+  createdAt DateTime @default(now())
+  
+  @@index([journeyId])
+  @@unique([journeyId, versionNumber])
+}
+
+// ============================================
+// INTERVIEW QUESTIONS
+// ============================================
+
+model InterviewQuestion {
+  id          String            @id @default(cuid())
+  category    InterviewCategory
+  order       Int               // Question order within category
+  
+  // Question
+  question    String
+  inputType   QuestionInputType
+  options     Json?             // For select/multi-select
+  required    Boolean           @default(true)
+  placeholder String?
+  helpText    String?
+  
+  // Conditional logic
+  showIf      Json?             // Conditions to show this question
+  
+  isActive    Boolean           @default(true)
+  
+  @@unique([category, order])
+}
+
+enum InterviewCategory {
+  PRODUCT_IDENTITY
+  TARGET_USERS
+  USER_ACQUISITION
+  CORE_EXPERIENCE
+  MONETIZATION
+  RETENTION_GROWTH
+}
+
+enum QuestionInputType {
+  TEXT
+  TEXTAREA
+  SELECT
+  MULTI_SELECT
+  NUMBER
+  EMAIL
+  URL
+}
