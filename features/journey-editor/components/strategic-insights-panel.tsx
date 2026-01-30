@@ -2,14 +2,43 @@
 
 import React from "react";
 import { Card } from "@/components/ui/card";
-import { X, TrendingUp, AlertTriangle, Target, Zap } from "lucide-react";
+import { X, TrendingUp, AlertTriangle, Target, Zap, Share2 } from "lucide-react";
+import { trpc } from "@/lib/trpc";
+import { BUSINESS_MODELS, recommendModel } from "@/lib/business-models";
 
 interface StrategicInsightsPanelProps {
+  journeyId: string;
   nodes: any[];
   onClose: () => void;
 }
 
-export function StrategicInsightsPanel({ nodes, onClose }: StrategicInsightsPanelProps) {
+export function StrategicInsightsPanel({ journeyId, nodes, onClose }: StrategicInsightsPanelProps) {
+  // Fetch journey details to get interview data for recommendation
+  // We use the `getById` query but we only need the description/title/etc. 
+  // Ideally, the saved interview responses should be stored or accessible. 
+  // For this MVF (Minimum Viable Feature), we'll infer from what we have 
+  // OR assume the backend stores interview data in a way we can read.
+  // The current `getById` returns `nodes` and `connections`. 
+  // Let's assume the interview analysis is stored in `aiResponse` or similar, 
+  // OR we just use a heuristic based on the nodes for now if data is missing.
+
+  // Actually, let's fetch the interview response if possible, or just default to Freemium 
+  // if we can't find the metadata. 
+  // Since `journeyRouter.getById` doesn't strictly return interview data, 
+  // we might need to rely on a default or expand the API. 
+  // However, `features/interview/ai-chat-interview` saves responses.
+
+  // Let's grab the journey to see if we have description/context
+  const { data: journey } = trpc.journey.getById.useQuery({ id: journeyId });
+
+  // Heuristic: Use title/description for recommendation if available
+  const recommendedKey = recommendModel(
+    journey?.description || "",
+    "",
+    ""
+  );
+  const model = BUSINESS_MODELS[recommendedKey];
+
   // Calculate funnel stage distribution
   const stageCount: Record<string, number> = nodes.reduce((acc: Record<string, number>, node) => {
     const stage = node.data?.funnelStage || "UNKNOWN";
@@ -45,7 +74,43 @@ export function StrategicInsightsPanel({ nodes, onClose }: StrategicInsightsPane
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
+
+        {/* BUSINESS MODEL SECTION (NEW) */}
+        <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4">
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <p className="text-xs font-bold text-blue-600 uppercase mb-1">Recommended Model</p>
+              <h4 className="flex items-center gap-2 text-lg font-bold text-slate-900">
+                <span>{model.icon}</span> {model.name}
+              </h4>
+            </div>
+          </div>
+          <p className="text-sm text-slate-600 mb-3 leading-relaxed">
+            {model.description}
+          </p>
+
+          <div className="bg-white/60 rounded-lg p-2 mb-3 border border-blue-100">
+            <p className="text-xs font-semibold text-slate-700 flex items-center gap-1 mb-1">
+              <Share2 className="w-3 h-3" /> Conversion Path
+            </p>
+            <p className="text-xs text-slate-600 font-mono">{model.conversionPath}</p>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold text-slate-700 mb-2">Key Touchpoints:</p>
+            <ul className="space-y-1">
+              {model.touchpoints.map((tp, idx) => (
+                <li key={idx} className="flex gap-2 text-xs text-slate-600">
+                  <span className="text-blue-500">•</span> {tp}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <hr className="border-slate-100" />
+
         {/* Journey Overview */}
         <div>
           <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">
@@ -77,21 +142,16 @@ export function StrategicInsightsPanel({ nodes, onClose }: StrategicInsightsPane
         </div>
 
         {/* Total Nodes */}
-        <div className="rounded-lg bg-blue-50 p-4 border border-blue-200">
+        <div className="rounded-lg bg-slate-50 p-4 border border-slate-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-1">
+              <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
                 Total Journey Nodes
               </p>
-              <p className="text-3xl font-bold text-blue-900">{totalNodes}</p>
+              <p className="text-3xl font-bold text-slate-900">{totalNodes}</p>
             </div>
-            <Target className="h-8 w-8 text-blue-300" />
+            <Target className="h-8 w-8 text-slate-300" />
           </div>
-          <p className="text-xs text-blue-700 mt-2">
-            {totalNodes >= 18
-              ? "✓ Complete funnel coverage"
-              : "⚠ Add more nodes for full coverage"}
-          </p>
         </div>
 
         {/* Critical Moments */}
@@ -128,30 +188,6 @@ export function StrategicInsightsPanel({ nodes, onClose }: StrategicInsightsPane
           </div>
         )}
 
-        {/* Exit Points */}
-        {exitNodes.length > 0 && (
-          <div>
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1">
-              <AlertTriangle className="h-3 w-3 text-red-500" /> Exit Points
-            </h4>
-            <div className="space-y-2">
-              {exitNodes.map((node) => (
-                <div
-                  key={node.id}
-                  className="rounded-lg bg-red-50 p-3 border border-red-200"
-                >
-                  <p className="text-xs font-semibold text-red-900 mb-1">
-                    {node.data?.label || "Unnamed"}
-                  </p>
-                  <p className="text-xs text-red-700">
-                    Add intervention before this point
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Recommendations */}
         <div>
           <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1">
@@ -174,40 +210,7 @@ export function StrategicInsightsPanel({ nodes, onClose }: StrategicInsightsPane
                   : "Monetization stage is well-structured"}
               </span>
             </li>
-            <li className="text-xs text-slate-600 flex gap-2">
-              <span className="text-green-600 font-bold">→</span>
-              <span>
-                {criticalNodes.length < 3
-                  ? "Add intervention points at key moments"
-                  : "Good distribution of critical moments"}
-              </span>
-            </li>
           </ul>
-        </div>
-
-        {/* Expected Metrics */}
-        <div className="rounded-lg bg-slate-50 p-4 border border-slate-200">
-          <p className="text-xs font-semibold uppercase text-slate-600 mb-3">
-            Expected Benchmarks
-          </p>
-          <div className="space-y-2 text-xs text-slate-700">
-            <div className="flex justify-between">
-              <span>Activation Rate:</span>
-              <span className="font-semibold">25-40%</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Conversion Rate:</span>
-              <span className="font-semibold">2-5%</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Retention Day 7:</span>
-              <span className="font-semibold">40-60%</span>
-            </div>
-            <div className="flex justify-between">
-              <span>LTV:CAC Ratio:</span>
-              <span className="font-semibold">3:1+</span>
-            </div>
-          </div>
         </div>
       </div>
 

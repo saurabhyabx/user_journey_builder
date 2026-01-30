@@ -10,7 +10,7 @@ const interviewResponseSchema = z.object({
   userType: z.string().min(3, "User type must be at least 3 characters").optional(),
   discoveryChannels: z.string().min(3, "Discovery channels must be at least 3 characters").optional(),
   primaryAction: z.string().min(3, "Primary action must be at least 3 characters").optional(),
-  
+
   // Form-specific fields
   product_type: z.string().min(1).optional(),
   product_description: z.string().min(3).optional(),
@@ -56,7 +56,7 @@ export const interviewRouter = router({
           { order: "asc" },
         ],
       });
-      
+
       return questions;
     }),
 
@@ -79,11 +79,11 @@ export const interviewRouter = router({
       const journey = await ctx.db.journey.update({
         where: { id: input.journeyId },
         data: {
-          interviewData: input.responses,
+          interviewData: input.responses as any,
           updatedAt: new Date(),
         },
       });
-      
+
       return journey;
     }),
 });

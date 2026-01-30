@@ -16,6 +16,11 @@ export default function AIChatPage() {
   const saveInterview = trpc.interview.saveResponse.useMutation();
   const generateJourney = trpc.ai.generateJourney.useMutation();
 
+  const handleProceedToEditor = async () => {
+    // This function is still used by the manual button if needed, but primary flow is auto-redirect
+    router.push(`/journey/${journeyId}/editor`);
+  };
+
   const handleComplete = async (data: Record<string, any>) => {
     try {
       setError(null);
@@ -24,44 +29,25 @@ export default function AIChatPage() {
         journeyId,
         responses: data,
       });
-      // Store interview data and show recommendation screen
+      // Store interview data locally 
       setInterviewData(data);
-    } catch (err) {
-      setError("Failed to save your interview. Please try again.");
-    }
-  };
 
-  const handleProceedToEditor = async () => {
-    if (!interviewData) return;
-    try {
-      // Now generate the journey based on the recommendation
+      // AUTOMATICALLY GENERATE & REDIRECT 
+      // Instead of showing the recommendation screen, we generate immediately
       await generateJourney.mutateAsync({
         journeyId,
-        interviewData,
+        interviewData: data,
       });
+
       router.push(`/journey/${journeyId}/editor`);
+
     } catch (err) {
       setError("Failed to generate your journey. Please try again.");
     }
   };
 
-  // Show recommendation screen if interview is complete
-  if (interviewData) {
-    return (
-      <div className="relative">
-        {error && (
-          <div className="absolute left-1/2 top-4 z-50 w-full max-w-md -translate-x-1/2 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-        <BusinessModelRecommendation
-          interviewData={interviewData}
-          journeyId={journeyId}
-          onProceed={handleProceedToEditor}
-        />
-      </div>
-    );
-  }
+  // Removed the conditional rendering for `interviewData`. 
+  // We now stay on the chat screen (while loading) until redirect happens.
 
   return (
     <div className="relative">

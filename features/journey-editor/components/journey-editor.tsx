@@ -192,14 +192,14 @@ export function JourneyEditor({ journeyId }: JourneyEditorProps) {
         nodes: nodes
           .filter((node) => node.type !== "swimlaneHeader")
           .map((node) => ({
-          id: node.id,
-          type: node.data.type || "ACTION",
-          label: node.data.label || "Step",
-          description: node.data.description,
-          positionX: node.position.x,
-          positionY: node.position.y,
-          data: node.data,
-          stage: node.data.stage,
+            id: node.id,
+            type: node.data.type || "ACTION",
+            label: node.data.label || "Step",
+            description: node.data.description,
+            positionX: node.position.x,
+            positionY: node.position.y,
+            data: node.data,
+            stage: node.data.stage,
           })),
         connections: edges.map((edge) => ({
           id: edge.id,
@@ -384,15 +384,17 @@ export function JourneyEditor({ journeyId }: JourneyEditorProps) {
               </Button>
             </Card>
 
-            {/* Insights Toggle Button - Top Right */}
-            <Card className="p-3 bg-white/95 backdrop-blur-sm border-slate-200 shadow-md absolute top-0 right-0 mr-3">
+          </Panel>
+
+          {/* Insights Toggle Button - Top Right */}
+          <Panel position="top-right">
+            <Card className="p-3 bg-white/95 backdrop-blur-sm border-slate-200 shadow-md">
               <Button
                 size="sm"
-                className={`transition-all ${
-                  showInsights
-                    ? "bg-blue-100 text-blue-700 border-blue-300"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                }`}
+                className={`transition-all ${showInsights
+                  ? "bg-blue-100 text-blue-700 border-blue-300"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
                 variant="outline"
                 onClick={() => setShowInsights(!showInsights)}
                 title="Toggle strategic insights panel"
@@ -403,119 +405,119 @@ export function JourneyEditor({ journeyId }: JourneyEditorProps) {
             </Card>
           </Panel>
 
-        {/* Node Type Menu */}
-        {showNodeMenu && (
-          <Panel position="top-center" className="w-auto">
-            <Card className="p-4">
-              <p className="text-sm font-semibold mb-3">Add Node</p>
-              <div className="grid grid-cols-3 gap-2">
+          {/* Node Type Menu */}
+          {showNodeMenu && (
+            <Panel position="top-center" className="w-auto">
+              <Card className="p-4">
+                <p className="text-sm font-semibold mb-3">Add Node</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => addNode("JOURNEY_START")}
+                    className="text-xs"
+                  >
+                    🚀 Start
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => addNode("ONBOARDING_STEP")}
+                    className="text-xs"
+                  >
+                    📋 Step
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => addNode("DECISION_POINT")}
+                    className="text-xs"
+                  >
+                    🔀 Decision
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => addNode("ACTION")}
+                    className="text-xs"
+                  >
+                    ⚡ Action
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => addNode("INTERVENTION")}
+                    className="text-xs"
+                  >
+                    🤝 Intervention
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => addNode("CONVERSION")}
+                    className="text-xs"
+                  >
+                    💰 Conversion
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => addNode("MILESTONE")}
+                    className="text-xs"
+                  >
+                    🏁 Milestone
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => addNode("TOUCHPOINT")}
+                    className="text-xs"
+                  >
+                    📍 Touchpoint
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => addNode("JOURNEY_END")}
+                    className="text-xs"
+                  >
+                    🏁 End
+                  </Button>
+                </div>
                 <Button
                   size="sm"
-                  variant="outline"
-                  onClick={() => addNode("JOURNEY_START")}
-                  className="text-xs"
+                  variant="ghost"
+                  onClick={() => setShowNodeMenu(false)}
+                  className="w-full mt-3 text-xs"
                 >
-                  🚀 Start
+                  Close
                 </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => addNode("ONBOARDING_STEP")}
-                  className="text-xs"
-                >
-                  📋 Step
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => addNode("DECISION_POINT")}
-                  className="text-xs"
-                >
-                  🔀 Decision
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => addNode("ACTION")}
-                  className="text-xs"
-                >
-                  ⚡ Action
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => addNode("INTERVENTION")}
-                  className="text-xs"
-                >
-                  🤝 Intervention
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => addNode("CONVERSION")}
-                  className="text-xs"
-                >
-                  💰 Conversion
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => addNode("MILESTONE")}
-                  className="text-xs"
-                >
-                  🏁 Milestone
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => addNode("TOUCHPOINT")}
-                  className="text-xs"
-                >
-                  📍 Touchpoint
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => addNode("JOURNEY_END")}
-                  className="text-xs"
-                >
-                  🏁 End
-                </Button>
-              </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setShowNodeMenu(false)}
-                className="w-full mt-3 text-xs"
-              >
-                Close
-              </Button>
+              </Card>
+            </Panel>
+          )}
+
+          {/* Bottom Info Panel */}
+          <Panel position="bottom-left">
+            <Card className="p-3 text-xs text-muted-foreground max-w-xs bg-white/95 backdrop-blur-sm border-slate-200">
+              <p className="font-semibold mb-2">Journey Information</p>
+              <p>📊 Nodes: {nodes.length}</p>
+              <p>🔗 Connections: {edges.length}</p>
+              <p className="mt-2 text-xs opacity-70">
+                Drag to move • Delete to remove • Ctrl+Click to select multiple
+              </p>
             </Card>
           </Panel>
-        )}
-
-        {/* Bottom Info Panel */}
-        <Panel position="bottom-left">
-          <Card className="p-3 text-xs text-muted-foreground max-w-xs bg-white/95 backdrop-blur-sm border-slate-200">
-            <p className="font-semibold mb-2">Journey Information</p>
-            <p>📊 Nodes: {nodes.length}</p>
-            <p>🔗 Connections: {edges.length}</p>
-            <p className="mt-2 text-xs opacity-70">
-              Drag to move • Delete to remove • Ctrl+Click to select multiple
-            </p>
-          </Card>
-        </Panel>
-      </ReactFlow>
+        </ReactFlow>
       </div>
 
       {/* Strategic Insights Sidebar - Collapsible */}
       <div
-        className={`transition-all duration-300 ease-out overflow-hidden ${
-          showInsights ? "w-80" : "w-0"
-        }`}
+        className={`transition-all duration-300 ease-out overflow-hidden ${showInsights ? "w-80" : "w-0"
+          }`}
       >
         {showInsights && (
           <StrategicInsightsPanel
+            journeyId={journeyId}
             nodes={nodes.filter((n) => n.type !== "swimlaneHeader")}
             onClose={() => setShowInsights(false)}
           />
