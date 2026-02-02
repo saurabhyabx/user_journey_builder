@@ -108,7 +108,11 @@ export function prepareCommentContext(
  */
 export function buildCommentAnalysisPrompt(
   comment: Comment,
-  targetData?: any,
+  targetData?: {
+    label?: string;
+    description?: string;
+    type?: string;
+  },
   journeyContext?: string
 ): string {
   const context = prepareCommentContext(comment, targetData);

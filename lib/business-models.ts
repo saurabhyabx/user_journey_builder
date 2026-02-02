@@ -92,7 +92,6 @@ export const BUSINESS_MODELS = {
 export function recommendModel(productType: string, userType: string, discoveryChannels: string): keyof typeof BUSINESS_MODELS {
     const type = (productType || "").toLowerCase();
     const user = (userType || "").toLowerCase();
-    const channels = (discoveryChannels || "").toLowerCase();
 
     // SaaS/B2B → Free Trial
     if (type.includes("saas") || type.includes("tool") || user.includes("business") || user.includes("enterprise")) {

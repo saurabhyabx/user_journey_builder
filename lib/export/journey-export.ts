@@ -6,7 +6,6 @@
  * How: Maps node types to Mermaid shapes, handles conditional routing
  */
 
-import { Node, Edge } from "reactflow";
 import { toPng } from 'html-to-image';
 
 interface ExportNode {
@@ -82,7 +81,7 @@ export function generateJSONExport(
   journeyId: string,
   nodes: ExportNode[],
   edges: ExportEdge[],
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 ) {
   return {
     version: "1.0",
@@ -202,7 +201,7 @@ export async function downloadPNG(journeyName: string) {
   }
 
   try {
-    const dataUrl = await toPng(element, {
+    await toPng(element, {
       backgroundColor: '#ffffff',
       style: {
         transform: 'translate(0, 0) scale(1)', // Reset transform to capture everything? 

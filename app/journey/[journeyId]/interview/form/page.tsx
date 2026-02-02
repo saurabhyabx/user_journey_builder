@@ -9,12 +9,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { ChevronRight, ChevronLeft, Loader } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 
-interface FormPageProps {
-  params: Promise<{
-    journeyId: string;
-  }>;
-}
-
 const INTERVIEW_PAGES = [
   {
     id: "product_identity",
@@ -197,7 +191,7 @@ export default function DetailedFormPage() {
   const router = useRouter();
   const journeyId = params.journeyId as string;
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
-  const [formData, setFormData] = useState<Record<string, any>>({});
+  const [formData, setFormData] = useState<Record<string, unknown>>({});
   const [loading, setLoading] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -210,7 +204,7 @@ export default function DetailedFormPage() {
   const isLastPage = currentPageIndex === INTERVIEW_PAGES.length - 1;
   const progress = Math.round(((currentPageIndex + 1) / INTERVIEW_PAGES.length) * 100);
 
-  const handleInputChange = (key: string, value: any) => {
+  const handleInputChange = (key: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
     setError(null); // Clear error when user types
   };
@@ -275,7 +269,7 @@ export default function DetailedFormPage() {
       });
       setCompleted(true);
       router.push(`/journey/${journeyId}/editor`);
-    } catch (err) {
+    } catch {
       setError("Failed to generate your journey. Please try again.");
     } finally {
       setLoading(false);
@@ -426,7 +420,7 @@ export default function DetailedFormPage() {
   );
 }
 
-function mapFormToInterviewData(formData: Record<string, any>) {
+function mapFormToInterviewData(formData: Record<string, unknown>) {
   const parseList = (value?: string) =>
     value
       ? value
@@ -435,6 +429,21 @@ function mapFormToInterviewData(formData: Record<string, any>) {
           .filter(Boolean)
       : undefined;
 
+  const dataCollected = formData.data_collected;
+  const dataCollectedValue = typeof dataCollected === "string" ? dataCollected : undefined;
+  const returnDriversValue = Array.isArray(formData.return_drivers)
+    ? formData.return_drivers
+    : undefined;
+  const discoveryChannelsValue = Array.isArray(formData.discovery_channels)
+    ? formData.discovery_channels
+    : undefined;
+  const growthMechanismsValue = Array.isArray(formData.growth_mechanisms)
+    ? formData.growth_mechanisms
+    : undefined;
+  const churnReasonsValue = Array.isArray(formData.churn_reasons)
+    ? formData.churn_reasons
+    : undefined;
+
   return {
     productType: formData.product_type,
     description: formData.product_description,
@@ -442,19 +451,19 @@ function mapFormToInterviewData(formData: Record<string, any>) {
     userType: formData.user_type,
     experienceLevel: formData.experience_level,
     painPoint: formData.pain_point,
-    discoveryChannels: formData.discovery_channels,
+    discoveryChannels: discoveryChannelsValue,
     firstAction: formData.first_action,
     signupInfo: Array.isArray(formData.data_collected)
       ? formData.data_collected
-      : parseList(formData.data_collected),
+      : parseList(dataCollectedValue),
     primaryAction: formData.primary_action,
     usageFrequency: formData.usage_frequency,
-    returnDrivers: formData.return_drivers,
+    returnDrivers: returnDriversValue,
     revenueModel: formData.revenue_model,
     upgradeTrigger: formData.upgrade_trigger,
     priceRange: formData.price_range,
     successDefinition: formData.success_definition,
-    growthMechanisms: formData.growth_mechanisms,
-    churnReasons: formData.churn_reasons,
+    growthMechanisms: growthMechanismsValue,
+    churnReasons: churnReasonsValue,
   };
 }
