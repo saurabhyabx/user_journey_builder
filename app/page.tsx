@@ -93,7 +93,7 @@ export default function HomePage() {
             <div className="mt-8">
               <Link href="/new-journey">
                 <Button size="lg" className="text-lg">
-                  Get Started - It's Free
+                  Get Started - It&apos;s Free
                 </Button>
               </Link>
             </div>

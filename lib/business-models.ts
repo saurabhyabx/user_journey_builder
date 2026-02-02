@@ -89,7 +89,7 @@ export const BUSINESS_MODELS = {
     }
 };
 
-export function recommendModel(productType: string, userType: string, discoveryChannels: string): keyof typeof BUSINESS_MODELS {
+export function recommendModel(productType: string, userType: string, _discoveryChannels: string): keyof typeof BUSINESS_MODELS {
     const type = (productType || "").toLowerCase();
     const user = (userType || "").toLowerCase();
 
