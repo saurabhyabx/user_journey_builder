@@ -44,9 +44,9 @@ export default function NewJourneyPage() {
 
         router.replace(interviewUrl);
 
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("[NewJourney] Creation failed:", err);
-        setError(err?.message || "Failed to create a new journey. Please refresh and try again.");
+        setError(err instanceof Error ? err.message : "Failed to create a new journey. Please refresh and try again.");
       }
     };
 

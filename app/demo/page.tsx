@@ -88,7 +88,7 @@ export default function DemoPage() {
                                 <span className="text-2xl">📈</span>
                             </div>
                             <h3 className="font-bold text-white mb-2">3. Strategic Insight</h3>
-                            <p className="text-sm text-slate-400">Identify gaps, opportunities, and "Aha!" moments automatically.</p>
+                            <p className="text-sm text-slate-400">Identify gaps, opportunities, and &quot;Aha!&quot; moments automatically.</p>
                         </div>
                     </div>
 

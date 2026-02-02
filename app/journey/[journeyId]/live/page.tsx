@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { AIChatInterview } from "@/features/interview/ai-chat-interview";
 import { ControlledJourneyEditor } from "@/features/journey-editor/components/controlled-journey-editor";
 import { useNodesState, useEdgesState, Connection, addEdge, Node, Edge } from "reactflow";
@@ -41,7 +40,7 @@ export default function LiveJourneyPage() {
     // Mutation to save the journey
     const saveJourney = trpc.journey.saveNodes.useMutation();
 
-    const handleComplete = async (data: any) => {
+    const handleComplete = async () => {
         try {
             // Save the AI-generated nodes/edges to the database
             await saveJourney.mutateAsync({

@@ -33,7 +33,7 @@ export default function HomePage() {
             </h1>
             <p className="mt-6 text-lg text-muted-foreground">
               Stop guessing. Let our AI partner challenge your assumptions, find the gaps in your flow,
-              and visualize your product's true potential in real-time.
+              and visualize your product&apos;s true potential in real-time.
             </p>
             <div className="mt-10 flex items-center justify-center gap-4">
               <Link href="/new-journey">
@@ -93,7 +93,7 @@ export default function HomePage() {
             <div className="mt-8">
               <Link href="/new-journey">
                 <Button size="lg" className="text-lg">
-                  Get Started - It's Free
+                  Get Started - It&apos;s Free
                 </Button>
               </Link>
             </div>

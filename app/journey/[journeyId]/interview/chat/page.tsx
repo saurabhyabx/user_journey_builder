@@ -2,7 +2,6 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { AIChatInterview } from "@/features/interview/ai-chat-interview";
-import { BusinessModelRecommendation } from "@/features/interview/business-model-recommendation";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 
@@ -11,17 +10,11 @@ export default function AIChatPage() {
   const router = useRouter();
   const journeyId = params.journeyId as string;
   const [error, setError] = useState<string | null>(null);
-  const [interviewData, setInterviewData] = useState<Record<string, any> | null>(null);
 
   const saveInterview = trpc.interview.saveResponse.useMutation();
   const generateJourney = trpc.ai.generateJourney.useMutation();
 
-  const handleProceedToEditor = async () => {
-    // This function is still used by the manual button if needed, but primary flow is auto-redirect
-    router.push(`/journey/${journeyId}/editor`);
-  };
-
-  const handleComplete = async (data: Record<string, any>) => {
+  const handleComplete = async (data: Record<string, unknown>) => {
     try {
       setError(null);
       // Save interview response
@@ -29,8 +22,6 @@ export default function AIChatPage() {
         journeyId,
         responses: data,
       });
-      // Store interview data locally 
-      setInterviewData(data);
 
       // AUTOMATICALLY GENERATE & REDIRECT 
       // Instead of showing the recommendation screen, we generate immediately
@@ -41,7 +32,7 @@ export default function AIChatPage() {
 
       router.push(`/journey/${journeyId}/editor`);
 
-    } catch (err) {
+    } catch {
       setError("Failed to generate your journey. Please try again.");
     }
   };

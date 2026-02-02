@@ -6,7 +6,6 @@
  * How: Maps node types to Mermaid shapes, handles conditional routing
  */
 
-import { Node, Edge } from "reactflow";
 import { toPng } from 'html-to-image';
 
 interface ExportNode {
@@ -82,7 +81,7 @@ export function generateJSONExport(
   journeyId: string,
   nodes: ExportNode[],
   edges: ExportEdge[],
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 ) {
   return {
     version: "1.0",
@@ -202,22 +201,12 @@ export async function downloadPNG(journeyName: string) {
   }
 
   try {
-    const dataUrl = await toPng(element, {
-      backgroundColor: '#ffffff',
-      style: {
-        transform: 'translate(0, 0) scale(1)', // Reset transform to capture everything? 
-        // Actually, without getting complex bounds, just capturing the element *might* be clipped or zoomed.
-        // Let's rely on default behavior first: it captures the DOM element as-is.
-        // But the viewport usually has a transform applied by ReactFlow (pan/zoom).
-        // If we want high-res, we need to do the getRect approach.
-        // For a V1 'Verification', let's accept 'Visible View' or 'Current Zoom' quirks 
-        // OR better: use the wrapper class .react-flow
-      }
-    });
-
     // Actually, capturing .react-flow__renderer (the whole standard container) usually works best for WYSIWYG
     const renderer = document.querySelector('.react-flow') as HTMLElement;
     const finalElement = renderer || element;
+    const style = finalElement === element
+      ? { transform: 'translate(0, 0) scale(1)' }
+      : undefined;
 
     // We use toPng from the library
     // We need to dynamically import it because this file might be imported in environments where 'html-to-image' causes issues if not careful?
@@ -225,6 +214,7 @@ export async function downloadPNG(journeyName: string) {
 
     const resultUrl = await toPng(finalElement, {
       backgroundColor: '#fff',
+      style,
     });
 
     const a = document.createElement('a');
