@@ -204,13 +204,7 @@ export async function downloadPNG(journeyName: string) {
     await toPng(element, {
       backgroundColor: '#ffffff',
       style: {
-        transform: 'translate(0, 0) scale(1)', // Reset transform to capture everything? 
-        // Actually, without getting complex bounds, just capturing the element *might* be clipped or zoomed.
-        // Let's rely on default behavior first: it captures the DOM element as-is.
-        // But the viewport usually has a transform applied by ReactFlow (pan/zoom).
-        // If we want high-res, we need to do the getRect approach.
-        // For a V1 'Verification', let's accept 'Visible View' or 'Current Zoom' quirks 
-        // OR better: use the wrapper class .react-flow
+        transform: 'translate(0, 0) scale(1)', // Reset transform to capture viewport at current zoom.
       }
     });
 
