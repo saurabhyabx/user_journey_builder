@@ -428,21 +428,14 @@ function mapFormToInterviewData(formData: Record<string, unknown>) {
           .map((item) => item.trim())
           .filter(Boolean)
       : undefined;
+  const asArray = <T,>(value: unknown) => (Array.isArray(value) ? (value as T[]) : undefined);
 
   const dataCollected = formData.data_collected;
   const dataCollectedValue = typeof dataCollected === "string" ? dataCollected : undefined;
-  const returnDriversValue = Array.isArray(formData.return_drivers)
-    ? formData.return_drivers
-    : undefined;
-  const discoveryChannelsValue = Array.isArray(formData.discovery_channels)
-    ? formData.discovery_channels
-    : undefined;
-  const growthMechanismsValue = Array.isArray(formData.growth_mechanisms)
-    ? formData.growth_mechanisms
-    : undefined;
-  const churnReasonsValue = Array.isArray(formData.churn_reasons)
-    ? formData.churn_reasons
-    : undefined;
+  const returnDriversValue = asArray<string>(formData.return_drivers);
+  const discoveryChannelsValue = asArray<string>(formData.discovery_channels);
+  const growthMechanismsValue = asArray<string>(formData.growth_mechanisms);
+  const churnReasonsValue = asArray<string>(formData.churn_reasons);
 
   return {
     productType: formData.product_type,

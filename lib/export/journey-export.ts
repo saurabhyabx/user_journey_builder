@@ -201,16 +201,12 @@ export async function downloadPNG(journeyName: string) {
   }
 
   try {
-    await toPng(element, {
-      backgroundColor: '#ffffff',
-      style: {
-        transform: 'translate(0, 0) scale(1)', // Reset transform to capture viewport at current zoom.
-      }
-    });
-
     // Actually, capturing .react-flow__renderer (the whole standard container) usually works best for WYSIWYG
     const renderer = document.querySelector('.react-flow') as HTMLElement;
     const finalElement = renderer || element;
+    const style = finalElement === element
+      ? { transform: 'translate(0, 0) scale(1)' }
+      : undefined;
 
     // We use toPng from the library
     // We need to dynamically import it because this file might be imported in environments where 'html-to-image' causes issues if not careful?
@@ -218,6 +214,7 @@ export async function downloadPNG(journeyName: string) {
 
     const resultUrl = await toPng(finalElement, {
       backgroundColor: '#fff',
+      style,
     });
 
     const a = document.createElement('a');
